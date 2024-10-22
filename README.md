@@ -1,4 +1,5 @@
-See the accompanying youtube video series on @NathanBuildsDIY channel for details on how to build all of this and get it going.  There are 5 main parts
+See the accompanying youtube video series on @NathanBuildsDIY channel for details on how to build all of this and get it going - https://youtu.be/KzYfzi7Ct5Y
+There are 5 parts
 
 1. Collect parts - 3d print all the files here on a large format 3d printer, buy the motors/raspberry pi/drone parts in the parts list
 2. Assemble the drone and landing pad per the youtube video.  See electrical schematics here as well.

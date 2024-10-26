@@ -1,0 +1,39 @@
+Mission planner set up. 
+	Great references - ardupilot - initial setup and first flight pages.  https://ardupilot.org/copter/docs/initial-setup.html
+  Install mission planner
+  Firmware load (usb).  Frame type. 
+Remove the USB cable from your cube orange, we're going to try to conn ct to it via the 900MHz radio instead.  connect the battery to your drone to power it up then plug your 900mhz radio into your laptop via the USB port. You may havccc v cto install some drivers for the 900mhz radio via USB or you may have to read a bit on the ardupilot pages about configuration, but for me windows grabbed the drivers and it connected when I had mission planner "auto" connected to the drone, no configuration required    c 7u[ cv  b   v cccccccccccccccccccccccccccccccccccccccccccccccccccc v    
+  Special setup for orange/here3+  New setup: cube orange/here3
+    https://docs.cubepilot.org/user-guides/here-3/here-3-manual - had to make changes to     parm list to get here3 recognized and used.
+CAN_D1_PROTOCOL: 1 set virtual driver of CAN1 to DRONECAN
+CAN_D2_PROTOCOL: 1 set virtual driver of CAN 2 to DRONECAN
+CAN_P1_DRIVER: 1 set this parameter to enable CAN 1 bus
+CAN_P2_DRIVER: 1 set this parameter to enable CAN 2 bus
+GPS_TYPE: 9 set the communication protal type of GPS 1 to DRONECAN
+NTF_LED_TYPES: 231 Set to DRONECAN for LED type
+There is no external safety switch. Set BRD_SAFETYENABLE as 0 to disable safety switch, or connect an physical external safety switch
+Click "Write Params" when done. CAN functions will be available after rebooting the flight controller.
+    Also setup for new cube orange
+    fs_thr_enable - disable to allow no rc controller
+    arming_check - disable check boxes
+    brd_safetyenable - disable
+    Then may have to disable "other" gps though it results in higher ekf
+  Connect via radio.  accel, compass, esc cal (skip radio - we don't have controls to fly)
+  Special configuration to auto fly. 
+	initial setup - flight modes
+	failsafes
+	prearm safety check
+	Other settings to customize
+	AUTO_OPTIONS: Auto mode options
+	0     Allow Arming
+	1     Allow Takeoff Without Raising Throttle
+	2     Ignore pilot yaw
+ 	   Object Detection - Connect to gps2 on cube orange.  (serial 4). 
+	   SERIAL4_PROTOCOL = 9 OLD SETTINGS: ORANGE 5  (serial3 = gps, 5) (serial 1/2 = 1)
+ 	   SERIAL4_BAUD = 115 OLD SETTINGS: ORANGE 38 (serial3 = 38)  (serial1/2 = 57)
+ 	   RNGFND1_TYPE = 20     YES THIS ONE ONLY ON ORANGE
+ 	   RNGFND1_MIN_CM = 10
+ 	   RNGFND1_MAX_CM = 300
+ 	   RNGFND1_GNDCLEAR = 10
+ 	   TEST SONAR = flight control, status, sonarrange (17.95?), sonarvoltage
+  Leica/base station.

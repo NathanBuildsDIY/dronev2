@@ -1,0 +1,337 @@
+import Part
+import math
+from FreeCAD import Base
+#TO DO:  
+# 2.2 adds rise bars to battery bay center and downward push on battery case for solid power connection.
+
+#VALUES#
+side = 150
+footheight = 17
+legheight = 128
+head = 20
+batteryCage = 30 #spacing of battery pipes
+batteryCageHeight = 40 #height of cage side rails
+batteryBayInset=5
+radius = 10
+thickness = 1.5
+supportthickness = 1
+nozzleOffsetFromBattery=70; nozzleLength=22;
+batteryPathDepth=10
+#parts arrays
+legs=[]
+sides=[]
+batteries=[]
+batteryBays=[]
+feet=[]
+motors=[]
+nozzles=[]
+supports=[]; zminFoot=0
+#placement arrays
+#support placement is below
+
+#Create new document
+App.newDocument("droneLander")
+App.setActiveDocument("droneLander")
+App.ActiveDocument=App.getDocument("droneLander")
+Gui.ActiveDocument=Gui.getDocument("droneLander")
+
+#Create vertical leg pipes
+legplacement=[[-side,-side],[-side,side],[side,-side],[side,side]]
+for placement in legplacement:
+  leg=Part.makeBox(radius*2,radius*2,legheight+footheight+head)
+  legcut=Part.makeBox(radius*2-thickness*2,radius*2-thickness*2,legheight+footheight+head)
+  legcut.Placement=App.Placement(App.Vector(thickness,thickness,0), App.Rotation(0, 0, 0))
+  #leg=leg.cut(legcut)
+  leg.Placement = App.Placement(App.Vector(placement[0], placement[1]-1.41*radius, 0), App.Rotation(45, 0, 0))
+  legcut.Placement = App.Placement(App.Vector(placement[0], placement[1]+thickness*1.41-1.41*radius, 0), App.Rotation(45, 0, 0))
+  legs.append([leg,legcut])
+  #Part.show(leg)
+
+#create Y span side 
+sideplacement=[[-side,-side,legheight*.9,0,45,0],[side,-side,legheight*1,0,45,0]]
+for placement in sideplacement:
+  sideSupport=Part.makeBox(radius*2,side*2,radius*2)
+  sideSupportcut=Part.makeBox(radius*2-thickness*2,side*2,radius*2-thickness*2)
+  sideSupportcut.Placement=App.Placement(App.Vector(thickness,0,thickness), App.Rotation(0, 0, 0))
+  #sideSupport=sideSupport.cut(sideSupportcut)
+  sideSupport.Placement = App.Placement(App.Vector(placement[0]-1.41*radius, placement[1], placement[2]), App.Rotation(placement[3], placement[4], placement[5]))
+  sideSupportcut.Placement = App.Placement(App.Vector(placement[0]+thickness*1.41-1.41*radius, placement[1], placement[2]), App.Rotation(placement[3], placement[4], placement[5]))
+  legs.append([sideSupport,sideSupportcut])
+  #sides.append([sideSupport,sideSupportcut])
+  #Part.show(side1)
+
+#createe X span side
+sideplacement=[[-side,side,footheight,0,0,45],[-side,-side,footheight,0,0,45],[-side,side,legheight*.9,0,0,45],[-side,-side,legheight*.9,0,0,45]]
+for placement in sideplacement:
+  sideSupport=Part.makeBox(side*2,radius*2,radius*2)
+  sideSupportcut=Part.makeBox(side*2,radius*2-thickness*2,radius*2-thickness*2)
+  sideSupportcut.Placement=App.Placement(App.Vector(0,thickness,thickness), App.Rotation(0, 0, 0))
+  #sideSupport=sideSupport.cut(sideSupportcut)
+  sideSupport.Placement = App.Placement(App.Vector(placement[0], placement[1], placement[2]-1.41*radius), App.Rotation(placement[3], placement[4], placement[5]))
+  sideSupportcut.Placement = App.Placement(App.Vector(placement[0], placement[1], placement[2]+thickness*1.41-1.41*radius), App.Rotation(placement[3], placement[4], placement[5]))
+  legs.append([sideSupport,sideSupportcut])
+  #sides.append([sideSupport,sideSupportcut])
+  #Part.show(side1)
+
+#create battery pipes
+batteryplacement=[[-batteryCage,-side,footheight,0,45,0],[batteryCage,-side,footheight,0,45,00]]
+for placement in batteryplacement:
+  battery=Part.makeBox(radius*2,side*2,radius*2)
+  batterycut=Part.makeBox(radius*2-thickness*2,side*2,radius*2-thickness*2)
+  batterycut.Placement=App.Placement(App.Vector(thickness,0,thickness), App.Rotation(0, 0, 0)) 
+  #battery=battery.cut(batterycut) #don't cut so we can use battery pipe to cut battery path later
+  battery.Placement = App.Placement(App.Vector(placement[0]-1.41*radius, placement[1], placement[2]), App.Rotation(placement[3], placement[4], placement[5]))
+  batterycut.Placement = App.Placement(App.Vector(placement[0]+thickness*1.41-1.41*radius, placement[1], placement[2]), App.Rotation(placement[3], placement[4], placement[5]))
+  #cut out the inside 1/2 of battery cut so there is a solid inside battery pipe where electrical connection will be. It was sagging when hollow resulting in poor electrical connection
+  batterycutcut=Part.makeBox(batteryCage*2,side*2-radius*2.82,100)
+  batterycutcut.Placement=App.Placement(App.Vector(-batteryCage,-side+radius*1.41,0), App.Rotation(0, 0, 0))
+  batterycut=batterycut.cut(batterycutcut) #this reduces the cut so it will have partially solid battery pipe later when cut
+  #now add raised bars in center to push up battery adn ensure contact
+  batteryRise=Part.makeBox(radius*2,side*1.5,radius*2)
+  batteryRise.Placement = App.Placement(App.Vector(placement[0]-1.41*radius, placement[1]+side*.25, placement[2]+.75), App.Rotation(placement[3], placement[4], placement[5]))
+  batteryRise=batteryRise.cut(batterycut)
+  Part.show(batteryRise)
+  batteryRise2=Part.makeBox(radius*2,side*1.25,radius*2)
+  batteryRise2.Placement = App.Placement(App.Vector(placement[0]-1.41*radius, placement[1]+side*.37, placement[2]+1.0), App.Rotation(placement[3], placement[4], placement[5]))
+  batteryRise2=batteryRise2.cut(batterycut)
+  Part.show(batteryRise2)
+  batteryRise3=Part.makeBox(radius*2,side*1.0,radius*2)
+  batteryRise3.Placement = App.Placement(App.Vector(placement[0]-1.41*radius, placement[1]+side*.5, placement[2]+1.25), App.Rotation(placement[3], placement[4], placement[5]))
+  batteryRise3=batteryRise3.cut(batterycut)
+  Part.show(batteryRise3)
+  legs.append([battery,batterycut])
+
+batteryBayCase=Part.makeBox(batteryCage*2+4,side*2,batteryCageHeight+45)
+#create battery slide cutout in X pipes
+batteryPathCut=Part.makeBox(batteryCage*2,side*4,batteryCageHeight+batteryPathDepth)
+batteryPathCutFull=batteryPathCut.copy() #this will more fully cut the pipe cuts (legs[1]) so we have solid buildup to the top of the battery cut area of the pipe
+batteryPathCut.Placement=App.Placement(App.Vector(-batteryCage,-side*2,legs[7][0].BoundBox.ZMax-batteryPathDepth),App.Rotation(0,0,0)) #-5 controls depth of battery connection grooves
+batteryPathCutFull.Placement=App.Placement(App.Vector(-batteryCage,-side*2,legs[7][0].BoundBox.ZMin+5),App.Rotation(0,0,0)) #-5 controls depth of battery connection grooves
+batteryPathCutFullCut=Part.makeBox(100,10,10) #cut diamond shape out of the shape that will cut the pipe cuts using this so the pipes (and the pipe cuts) can be built (no flat top inside pipe - diamond shape instead)
+batteryPathCutFullCut.Placement=App.Placement(App.Vector(-50,-side,legs[7][0].BoundBox.ZMin),App.Rotation(0,0,45))
+batteryPathCutFull=batteryPathCutFull.cut(batteryPathCutFullCut)
+batteryPathCutFullCut.Placement=App.Placement(App.Vector(-50,side,legs[7][0].BoundBox.ZMin),App.Rotation(0,0,45))
+batteryPathCutFull=batteryPathCutFull.cut(batteryPathCutFullCut)
+batteryPathCutCut1=Part.makeBox(radius*2,side*4,radius*2) #This carves out the battery pipes from the battery Path Cut
+batteryPathCutCut1.Placement = App.Placement(App.Vector(-batteryCage-1.41*radius,-side*2, footheight), App.Rotation(0,45,0))
+batteryPathCut=batteryPathCut.cut(batteryPathCutCut1)
+batteryPathCutCut2=Part.makeBox(radius*2,side*4,radius*2)
+batteryPathCutCut2.Placement= App.Placement(App.Vector(batteryCage-1.41*radius,-side*2, footheight), App.Rotation(0,45,0))
+batteryPathCut=batteryPathCut.cut(batteryPathCutCut2)
+for l, leg in enumerate(legs):
+  #remove battery path from legs and leg cuts
+  intersect = leg[0].common(batteryPathCut) #check if solid intersects cut
+  if len(intersect.Solids) > 0:
+    legs[l][0]=legs[l][0].cut(batteryPathCut)
+    legs[l][1]=legs[l][1].cut(batteryPathCutFull)
+batteryBayCase.Placement=App.Placement(App.Vector(-batteryCage-2,-side,batteryPathCut.BoundBox.ZMin), App.Rotation(0,0,0))
+batteryBayCase=batteryBayCase.cut(batteryPathCut) #hollow out the bay case w/ battery path
+for l, leg in enumerate(legs):
+  #now remove all battery case from inside pipes.
+  intersect = leg[0].common(batteryBayCase) #check if solid intersects cut
+  if len(intersect.Solids) > 0:
+    batteryBayCase=batteryBayCase.cut(legs[l][0])
+#add a single ridge to "key" battery cage so it can't be inserted backwards (+/- voltage) in drone
+batteryCageKey=Part.makeBox(3,500,1.5)
+batteryCageKey.Placement = App.Placement(App.Vector(batteryPathCut.BoundBox.XMin+19,-250,batteryPathCut.BoundBox.ZMin-batteryCageKey.BoundBox.ZMax), App.Rotation(0,0,0))
+for l, leg in enumerate(legs):
+  #remove battery path from legs and leg cuts
+  intersect = leg[0].common(batteryCageKey) #check if solid intersects cut
+  if len(intersect.Solids) > 0:
+    legs[l][0]=legs[l][0].cut(batteryCageKey)
+#now cut angle out of battery bay case so roof can be manufactured
+batteryBayCaseRoofCut=Part.makeBox(batteryCage*2/1.41,side*.5,batteryCage*2/1.41)
+batteryBayCaseRoofCut.Placement=App.Placement(App.Vector(-batteryCage,-side,batteryPathCut.BoundBox.ZMax), App.Rotation(0,45,0))
+batteryBayCase=batteryBayCase.cut(batteryBayCaseRoofCut) #this cuts in .5 side long sections so we can leave the middle down a bit
+batteryBayCaseRoofCut.Placement=App.Placement(App.Vector(-batteryCage,-side*.75,batteryPathCut.BoundBox.ZMax), App.Rotation(0,45,0))
+batteryBayCase=batteryBayCase.cut(batteryBayCaseRoofCut)
+batteryBayCaseRoofCut.Placement=App.Placement(App.Vector(-batteryCage,-side*.65,batteryPathCut.BoundBox.ZMax-.75), App.Rotation(0,45,0))
+batteryBayCase=batteryBayCase.cut(batteryBayCaseRoofCut) #this one leaves the roof down .5mm in the center. Plastic on plastic shouldn't rip the copper tape
+batteryBayCaseRoofCut.Placement=App.Placement(App.Vector(-batteryCage,-side*.15,batteryPathCut.BoundBox.ZMax-1.25), App.Rotation(0,45,0))
+batteryBayCase=batteryBayCase.cut(batteryBayCaseRoofCut) #this one leaves the roof down 1mm in the center. Plastic on plastic shouldn't rip the copper tape
+batteryBayCaseRoofCut.Placement=App.Placement(App.Vector(-batteryCage,side*.15,batteryPathCut.BoundBox.ZMax-.75), App.Rotation(0,45,0))
+batteryBayCase=batteryBayCase.cut(batteryBayCaseRoofCut) #this one leaves the roof down .5mm in the center. Plastic on plastic shouldn't rip the copper tape
+batteryBayCaseRoofCut.Placement=App.Placement(App.Vector(-batteryCage,side*.25,batteryPathCut.BoundBox.ZMax), App.Rotation(0,45,0))
+batteryBayCase=batteryBayCase.cut(batteryBayCaseRoofCut) 
+batteryBayCaseRoofCut.Placement=App.Placement(App.Vector(-batteryCage,side*.5,batteryPathCut.BoundBox.ZMax), App.Rotation(0,45,0))
+batteryBayCase=batteryBayCase.cut(batteryBayCaseRoofCut)
+
+#add the feet
+footplacement=[[-side,-side],[-side,side],[side,-side],[side,side]]
+for placement in footplacement:
+  foot=Part.makeSphere(radius*2.3)
+  footcut=Part.makeBox(radius*10,radius*10,radius*10)
+  foot.Placement=App.Placement(App.Vector(placement[0], placement[1], 0.7*radius), App.Rotation(0, 0, 0))
+  footcut.Placement=App.Placement(App.Vector(placement[0]-radius*5, placement[1]-radius*5, 0), App.Rotation(0, 0, 0))
+  foot=foot.cut(footcut)
+  footcut.Placement=App.Placement(App.Vector(placement[0]-radius*5, placement[1]-radius*5, -radius*10.9), App.Rotation(0, 0, 0))
+  foot=foot.cut(footcut)
+  #add reinforcement on top of foot into leg so it doesn't break/leak when you pry up from hot plate
+  footReinforce=Part.makeBox(radius*2.75,radius*2.75,4)
+  footReinforceCut=Part.makeBox(2,2,2)
+  i=0
+  while i*4+2<footReinforce.BoundBox.XMax:
+    j=0
+    while j*4+2<footReinforce.BoundBox.YMax:
+      footReinforceCut.Placement=App.Placement(App.Vector(i*4+2,j*4+2,0), App.Rotation(0, 0, 0))
+      footReinforce=footReinforce.cut(footReinforceCut)
+      j=j+1
+    i=i+1
+  footReinforce.Placement=App.Placement(App.Vector(placement[0]-footReinforce.BoundBox.XMax/2, placement[1]-footReinforce.BoundBox.YMax/2, ), App.Rotation(0, 0, 0))
+  foot=foot.fuse(footReinforce)
+  feet.append(foot)
+  zminFoot=foot.BoundBox.ZMin
+
+#add motor mounts
+for placement in legplacement:
+  taperWedge=Part.makeWedge(0,0,0,radius,radius,radius*2,radius*2,radius*2,radius,radius)
+  taperWedgeCut=taperWedge.copy()
+  taperWedgeCut.Placement=App.Placement(App.Vector(0, -thickness*2, 0), App.Rotation(0, 0, 0))
+  taperWedge=taperWedge.cut(taperWedgeCut)
+  motorheight=radius*2.5
+  thincone=Part.makeCone(radius,radius*1.4,motorheight) #top cone radius is very close to the screw holes to help buildability
+  thinconeDown=Part.makeCone(radius/2,radius,radius*.5) #second term must match top term above
+  thinconeDown.Placement=App.Placement(App.Vector(0,0,-thinconeDown.BoundBox.ZMax),App.Rotation(0,0,0))
+  thincone=thincone.fuse(thinconeDown)
+  motorcylinder=Part.makeCylinder(15,4) #radius is not much more than screw holes to increase buildability
+  motorcylinderCuts=[[9.5,0],[-9.5,0],[0,7.5],[0,-7.5]]  #note this decides where motor screw holes are
+  cylinderCut=Part.makeCylinder(2.2,radius*3) #the first argument decides radius of the screw holes
+  coneCut=Part.makeCylinder(4,radius*4) #first argument decides how large of a screw head can fit into cone under mount
+  centerMotorAxleCut=Part.makeCylinder(2,2) # the motors have a small axle sticking off the bottom, need to cut out for that
+  for motorcylinderCut in motorcylinderCuts:
+    cylinderCut.Placement=App.Placement(App.Vector(motorcylinderCut[0],motorcylinderCut[1],0),App.Rotation(0,0,0))
+    motorcylinder=motorcylinder.cut(cylinderCut)
+    centerMotorAxleCut.Placement=App.Placement(App.Vector(0,0,motorcylinder.BoundBox.ZMax-centerMotorAxleCut.BoundBox.ZMax),App.Rotation(0,0,0))
+    motorcylinder=motorcylinder.cut(centerMotorAxleCut)
+    coneCut.Placement=App.Placement(App.Vector(motorcylinderCut[0]*1.2,motorcylinderCut[1]*1.2,0),App.Rotation(0,0,0)) #1.1 offcenters these just a bit toward the outside
+    thincone=thincone.cut(coneCut)
+  taperWedge.Placement=App.Placement(App.Vector(placement[0]-1.40*radius, placement[1], legheight+head+footheight), App.Rotation(45, 0, 90))
+  taperWedgeCut.Placement=App.Placement(App.Vector(placement[0]-1.40*radius, placement[1], legheight+head+footheight-thickness*2), App.Rotation(45, 0, 90))
+  thincone.Placement=App.Placement(App.Vector(placement[0], placement[1], taperWedge.BoundBox.ZMax-radius), App.Rotation(0, 0, 0))
+  thincone=thincone.cut(taperWedgeCut)
+  motorcylinder.Placement=App.Placement(App.Vector(placement[0],placement[1],thincone.BoundBox.ZMax),App.Rotation(0,0,0))
+  motors.append(taperWedge)
+  motors.append(thincone)
+  motors.append(motorcylinder)
+
+#Fluid input cone
+coner1=10
+coner2=30
+inputcone=Part.makeCone(coner1,coner2,legheight*.2)
+inputconeCut=Part.makeCone(coner1-thickness,coner2-thickness,legheight*.2) #radius thickness = 3mm like above
+inputcone=inputcone.cut(inputconeCut)
+inputcone.Placement=App.Placement(App.Vector(side, 0, legheight*1+radius*.5), App.Rotation(0, 0, 0))
+inputconeCut.Placement=App.Placement(App.Vector(side, 0, legheight*1+radius*.5), App.Rotation(0, 0, 0))
+inputcone=inputcone.cut(legs[5][1])
+legs[5][0]=legs[5][0].cut(inputconeCut)
+# overflow cone
+coner1=5
+coner2=10
+outputcone=Part.makeCone(coner1,coner2,radius*2)
+outputconeCut=Part.makeCone(coner1-thickness,coner2-thickness,radius*2) #radius thickness = 3mm like above
+outputcone=outputcone.cut(outputconeCut)
+outputcone.Placement=App.Placement(App.Vector(side, side*.3, legheight*1+radius*.75), App.Rotation(0, 90, 0))
+outputconeCut.Placement=App.Placement(App.Vector(side, side*.3, legheight*1+radius*.75), App.Rotation(0, 90, 0))
+outputcone=outputcone.cut(legs[5][1])
+legs[5][0]=legs[5][0].cut(outputconeCut)
+#support output cone for build
+outputconesupport=Part.makeBox(legheight*.25,supportthickness,10)
+outputconesupport.Placement=App.Placement(App.Vector(side, side*.3, legheight*.98-radius*2.2), App.Rotation(0, -45, 0))
+outputconesupport=outputconesupport.cut(outputconeCut)
+outputconesupport=outputconesupport.cut(legs[5][1])
+
+#pump hole - hose goes in leg and snakes to bottom of leg to suck up liquid into pump
+radiusHole=5
+hoseCut=Part.makeCylinder(radiusHole,radius)
+hoseCut.Placement=App.Placement(App.Vector(side-radius*.5, side-radius*.5, legheight+head+radiusHole*1.5), App.Rotation(-45, -45, 90))
+legs[3][0]=legs[3][0].cut(hoseCut)
+
+#nozzles
+nozzleplacement=[[-batteryCage-nozzleOffsetFromBattery,-side+radius*1.41,footheight,0,0,45],[-batteryCage-nozzleOffsetFromBattery-nozzleLength,-side+radius*1.41,footheight,0,0,45],[-batteryCage-nozzleOffsetFromBattery,side-radius*1.41+thickness,footheight+1,0,0,135],[-batteryCage-nozzleOffsetFromBattery-nozzleLength,side-radius*1.41+thickness,footheight+1,0,0,135],[-batteryCage-radius*1.41+thickness,-nozzleLength/2,footheight,0,-135,0],[-batteryCage-radius*1.41+thickness,nozzleLength/2,footheight,0,-135,0]]
+for placement in nozzleplacement:
+  nozzle=Part.makeBox(10,10,thickness)
+  nozzle.Placement = App.Placement(App.Vector(placement[0], placement[1], placement[2]), App.Rotation(placement[3], placement[4], placement[5]))
+  nozzles.append(nozzle)
+
+supportplacement=[[batteryCage,side,zminFoot,-zminFoot+footheight-radius,180,0,0],[-batteryCage,side,zminFoot,-zminFoot+footheight-radius,180,0,0]]
+#Add supports for buildability
+for placement in supportplacement:
+  #add in battery bay side rectangles. Battery actually rests on the pipes which have contacts (for now anyway)
+  support=Part.makeBox(supportthickness,side*2,placement[3])
+  support.Placement = App.Placement(App.Vector(placement[0], placement[1], placement[2]), App.Rotation(placement[4], placement[5], placement[6]))
+  supports.append(support)
+
+supportplacement=[[-side+radius,-side,zminFoot,-zminFoot+footheight-radius,-90,0,0],[-side+radius,side,zminFoot,-zminFoot+footheight-radius,-90,0,0],
+  [side,side-radius,zminFoot,-zminFoot+legheight*1-radius,180,0,0],[-side,side-radius,zminFoot,-zminFoot+legheight*.90-radius,180,0,0],
+  [-side+radius,-side,footheight+radius,legheight*.90-radius-footheight-radius,-90,0,0],[-side+radius,side,footheight+radius,legheight*.90-radius-footheight-radius,-90,0,0]]
+#Add supports for buildability
+for placement in supportplacement:
+  #add in battery bay side rectangles. Battery actually rests on the pipes which have contacts (for now anyway)
+  support=Part.makeBox(supportthickness,side*2-2*radius,placement[3])
+  support.Placement = App.Placement(App.Vector(placement[0], placement[1], placement[2]), App.Rotation(placement[4], placement[5], placement[6]))
+  supports.append(support)
+#make support placement cuts to keep buildability, vurther cut out to open battery bay 
+supportPlacementCut=Part.makeBox(side*2+1,side*2+1,side*2+1)
+supportPlacementCut.Placement=App.Placement(App.Vector(0,-side-1,legheight-radius*2*1.41+thickness),App.Rotation(0,135,0))
+supports[6]=supports[6].cut(supportPlacementCut)
+supports[7]=supports[7].cut(supportPlacementCut)
+#leave this - provides structure and the thin diagonal cuts were getting off kilter during manufacture.
+#supportPlacementCut.Placement=App.Placement(App.Vector(-side-1,0,legheight-radius*2-thickness*3.5),App.Rotation(0,0,-135))
+#supports[4]=supports[4].cut(supportPlacementCut)
+#supports[5]=supports[5].cut(supportPlacementCut)
+
+#create GPS mast & cone to hold it
+gpsMast=Part.makeCylinder(8,160)
+gpsMastReinforce1=Part.makeCylinder(1,20)
+gpsMastReinforce2=Part.makeCylinder(1,gpsMastReinforce1.BoundBox.ZMax)
+gpsMastReinforce3=Part.makeCylinder(1,gpsMastReinforce1.BoundBox.ZMax)
+gpsMastReinforce4=Part.makeCylinder(1,gpsMastReinforce1.BoundBox.ZMax)
+gpsMastReinforce5=Part.makeCylinder(1,gpsMastReinforce1.BoundBox.ZMax)
+gpsMastTop=Part.makeCone(8,18,6)
+gpsMastTop.Placement=App.Placement(App.Vector(0,0,gpsMast.BoundBox.ZMax),App.Rotation(0,0,0))
+gpsMast=gpsMast.fuse(gpsMastTop)
+gpsMast.Placement=App.Placement(App.Vector(0,0,batteryBayCase.BoundBox.ZMax),App.Rotation(0,0,0))
+gpsMastReinforce1.Placement=App.Placement(App.Vector(0,0,batteryBayCase.BoundBox.ZMax-gpsMastReinforce5.BoundBox.ZMax/2),App.Rotation(0,0,0))
+gpsMastReinforce2.Placement=App.Placement(App.Vector(6,0,batteryBayCase.BoundBox.ZMax-gpsMastReinforce5.BoundBox.ZMax/2),App.Rotation(0,0,0))
+gpsMastReinforce3.Placement=App.Placement(App.Vector(0,6,batteryBayCase.BoundBox.ZMax-gpsMastReinforce5.BoundBox.ZMax/2),App.Rotation(0,0,0))
+gpsMastReinforce4.Placement=App.Placement(App.Vector(-6,0,batteryBayCase.BoundBox.ZMax-gpsMastReinforce5.BoundBox.ZMax/2),App.Rotation(0,0,0))
+gpsMastReinforce5.Placement=App.Placement(App.Vector(0,-6,batteryBayCase.BoundBox.ZMax-gpsMastReinforce5.BoundBox.ZMax/2),App.Rotation(0,0,0))
+gpsMast=gpsMast.cut(gpsMastReinforce1); gpsMast=gpsMast.cut(gpsMastReinforce2); gpsMast=gpsMast.cut(gpsMastReinforce3); gpsMast=gpsMast.cut(gpsMastReinforce4); gpsMast=gpsMast.cut(gpsMastReinforce5)
+batteryBayCase=batteryBayCase.cut(gpsMastReinforce1); batteryBayCase=batteryBayCase.cut(gpsMastReinforce2); batteryBayCase=batteryBayCase.cut(gpsMastReinforce3); batteryBayCase=batteryBayCase.cut(gpsMastReinforce4); batteryBayCase=batteryBayCase.cut(gpsMastReinforce5);
+
+#recut all the negative pipes
+for l, leg in enumerate(legs):
+  print(l)
+  for c, legcut in enumerate(legs):
+    intersect = leg[0].common(legcut[1]) #check if solid intersects cut
+    if len(intersect.Solids) > 0:
+      print("solid: ",l," cut: ",c)
+      legs[l][0]=legs[l][0].cut(legcut[1])
+for b, batteryBay in enumerate(batteryBays):
+  for c, legcut in enumerate(legs):
+    intersect = batteryBay.common(legcut[1]) #check if solid intersects cut
+    if len(intersect.Solids) > 0:
+      batteryBays[b]=batteryBays[b].cut(legcut[1])
+
+#draw all the solids
+for leg in legs:
+  Part.show(leg[0])
+  #Part.show(leg[1]) #shows negative pipes - debug only
+for foot in feet:
+  Part.show(foot)
+for motor in motors:
+  Part.show(motor)
+Part.show(inputcone)
+Part.show(outputcone)
+for nozzle in nozzles:
+  Part.show(nozzle)
+for support in supports:
+  Part.show(support)
+Part.show(outputconesupport)
+Part.show(gpsMast)
+Part.show(batteryBayCase)
+
+#Make it pretty#
+App.activeDocument().recompute()
+Gui.activeDocument().activeView().viewAxometric()
+Gui.SendMsgToActiveView("ViewFit")

@@ -1,0 +1,163 @@
+import Part
+import math
+from FreeCAD import Base
+
+#notes on build:
+#both parts built face down. One holds up the end of the cyl spinner. The other mounts the motor to spin cyl
+#height of cyl spinner is determined by how far off the ground the spinner must be to hit the battery port on the drone frame
+#there is a gap below the cyl spinner points, one for battery to pass through, the other for push arm to go through
+#these parts should be screwed on to a mounting board
+
+#VALUES#
+distanceOffGroundBattery = 30 #taken from the drone base - the battery cage opening is Xmm from bottom of feet
+spinnerCenterToBatteryBottom=83 #distance from center of spinner to battery open
+
+side = 150
+footheight = 17
+legheight = 128
+head = 20
+batteryCage = 30 #spacing of battery pipes
+batteryCageHeight = 40 #height of cage side rails
+batteryBayInset=5
+radius = 10
+thickness = 4
+supportthickness = 1
+nozzleOffsetFromBattery=70; nozzleLength=22;
+batteryPathDepth=10
+postRadius = 5
+screwradius=2
+screwsize = 1.5
+
+#parts arrays
+batteryBays=[]
+#placement arrays
+
+#Create new document
+App.newDocument("ChargerSpinnerHarness")
+App.setActiveDocument("ChargerSpinnerHarness")
+App.ActiveDocument=App.getDocument("ChargerSpinnerHarness")
+Gui.ActiveDocument=Gui.getDocument("ChargerSpinnerHarness")
+
+def makeMotorHousing():
+  housingHeight = 29
+  housingDepth = 42
+  housingWidth = 19
+  motorHousing = Part.makeBox(housingWidth+thickness*2,housingDepth+thickness*4,housingHeight+thickness)
+  motorHousingCut = Part.makeBox(housingWidth,housingDepth,housingHeight)
+  motorHousingCut.Placement = App.Placement(App.Vector(thickness,thickness*2,thickness), App.Rotation(0,0,0))
+  motorHousing = motorHousing.cut(motorHousingCut)
+  #screw holes in cover
+  screwPlacement = [[motorHousing.BoundBox.XMin+2*thickness+3,thickness],[motorHousing.BoundBox.XMax-2*thickness,thickness],[motorHousing.BoundBox.XMin+2*thickness+3,motorHousing.BoundBox.YMax-thickness],[motorHousing.BoundBox.XMax-2*thickness,motorHousing.BoundBox.YMax-thickness]]
+  screwCut = Part.makeCylinder(screwsize,motorHousing.BoundBox.ZMax/2)
+  for placement in screwPlacement:
+    screwCut.Placement = App.Placement(App.Vector(placement[0],placement[1],motorHousing.BoundBox.ZMax/2), App.Rotation(0,0,0))
+    motorHousing = motorHousing.cut(screwCut)
+  #cut for wire out
+  motorHousingCut = Part.makeBox(housingWidth,thickness*2,motorHousing.BoundBox.ZMax/4+2) #2 based on observation
+  motorHousingCut.Placement = App.Placement(App.Vector(thickness,0,thickness), App.Rotation(0,0,0))
+  motorHousing = motorHousing.cut(motorHousingCut)
+  return motorHousing
+
+#base
+base1=Part.makeBox(batteryCage*5,distanceOffGroundBattery+spinnerCenterToBatteryBottom+20,thickness)
+#catch torus fits to the center cyl of battery charger, radius = 1
+catchCyl=Part.makeCylinder(postRadius*2,15)
+catchCylCut=Part.makeCylinder(postRadius+.5,15)
+catchCyl=catchCyl.cut(catchCylCut)
+catchCyl.Placement = App.Placement(App.Vector(base1.BoundBox.XMax/2,distanceOffGroundBattery+spinnerCenterToBatteryBottom,0), App.Rotation(0,0,0))
+catchCylCut.Placement = App.Placement(App.Vector(base1.BoundBox.XMax/2,distanceOffGroundBattery+spinnerCenterToBatteryBottom,0), App.Rotation(0,0,0))
+#make catch buildable once vertical with a wedge
+catchCylWedge=Part.makeWedge(0,0,0,0,postRadius*2,postRadius*4,17,postRadius*5,0,postRadius*2)
+catchCylWedge.Placement = App.Placement(App.Vector(catchCyl.BoundBox.XMax,catchCyl.BoundBox.YMax-postRadius*2.6,catchCyl.BoundBox.ZMin), App.Rotation(180,0,0))
+#now cut wedge so it doesn't interfere w/ anything
+catchCylWedgeCut=Part.makeBox(200,200,200)
+catchCylWedgeCut.Placement = App.Placement(App.Vector(-20,-20,catchCyl.BoundBox.ZMax), App.Rotation(0,0,0))
+catchCylWedge=catchCylWedge.cut(catchCylCut)
+catchCylWedge=catchCylWedge.cut(catchCylWedgeCut)
+
+#cut out hole for battery to pass through - make it angled to push out battery if caught.
+#base1cut=Part.makeBox(batteryCage*3,batteryCageHeight*1.5,thickness)
+#base1cut.Placement = App.Placement(App.Vector((base1.BoundBox.XMax-base1cut.BoundBox.XMax)/2,distanceOffGroundBattery-5,0), App.Rotation(0,0,0))
+base1cut=Part.makeWedge(0,0,0,4,4,batteryCage*3,thickness,batteryCageHeight*1.8,batteryCageHeight*1.8-4,batteryCage*3-4)
+base1cut2=base1cut.copy()
+base1cut.Placement = App.Placement(App.Vector((base1.BoundBox.XMax-base1cut.BoundBox.XMax)/2,distanceOffGroundBattery-5.5+base1cut.BoundBox.ZMax,0), App.Rotation(0,0,90))
+base1=base1.cut(base1cut)
+catchCylWedge=catchCylWedge.cut(base1cut)
+#also angle the outside of the walls to help batteries come back in to the harness
+base1cut.Placement = App.Placement(App.Vector(base1.BoundBox.XMax-thickness,distanceOffGroundBattery-5.5+batteryCageHeight*1.8,0), App.Rotation(0,0,90))
+base1=base1.cut(base1cut)
+base1cut2.Placement = App.Placement(App.Vector(base1.BoundBox.XMin-base1cut2.BoundBox.XMax+thickness,distanceOffGroundBattery-5.5+batteryCageHeight*1.8,0), App.Rotation(0,0,90))
+base1=base1.cut(base1cut2)
+
+#make vertical suppports
+vertical1=Part.makeBox(base1.BoundBox.XMax,thickness*2,side)
+#with screw holes
+screwCut=Part.makeCylinder(screwradius,thickness*3)
+screwOffset = 55
+screwCutPlacement=[[(vertical1.BoundBox.XMax-20),screwOffset],[20,screwOffset],[20,vertical1.BoundBox.ZMax-screwOffset],[vertical1.BoundBox.XMax-20,vertical1.BoundBox.ZMax-screwOffset]]
+for placement in screwCutPlacement:
+  screwCut.Placement = App.Placement(App.Vector(placement[0],0,placement[1]), App.Rotation(0,0,-90))
+  vertical1 = vertical1.cut(screwCut)
+#and support connections on both sides for stability
+supports1 = []
+supportheight=25
+supportPlacement = [[thickness,supportheight,vertical1.BoundBox.ZMax,0,0,0],[thickness,base1.BoundBox.YMax/2.5,supportheight,0,0,0],[thickness,supportheight,vertical1.BoundBox.ZMax,base1.BoundBox.XMax-thickness,0,0],[thickness,base1.BoundBox.YMax/2.5,supportheight,base1.BoundBox.XMax-thickness,0,0]]
+for placement in supportPlacement:
+  support = Part.makeBox(placement[0],placement[1],placement[2])
+  support.Placement = App.Placement(App.Vector(placement[3],placement[4],placement[5]), App.Rotation(0,0,0))
+  support=support.cut(base1cut); support=support.cut(base1cut2)
+  supports1.append(support)
+#The feet of the drone will hit the mount plate (12 tall, 10 stickout) unless we angle the bottom of this
+angleSupport=Part.makeBox(base1.BoundBox.XMax,30,30)
+angleSupport.Placement=App.Placement(App.Vector(0,4,-18), App.Rotation(0,0,45))
+angleSupportCut=Part.makeBox(200,200,200)
+angleSupportCut.Placement=App.Placement(App.Vector(0,-angleSupportCut.BoundBox.YMax,-20), App.Rotation(0,0,0))
+angleSupport=angleSupport.cut(angleSupportCut)
+angleSupportCut.Placement=App.Placement(App.Vector(0,0,0), App.Rotation(0,0,0))
+angleSupportCut.Placement=App.Placement(App.Vector(0,-20,-angleSupportCut.BoundBox.ZMax), App.Rotation(0,0,0))
+angleSupport=angleSupport.cut(angleSupportCut)
+
+base1whole = base1.fuse(catchCyl).fuse(vertical1).fuse(supports1[0:]).fuse(angleSupport).fuse(catchCylWedge)
+angleSupportCut.Placement=App.Placement(App.Vector(0,0,0), App.Rotation(0,0,0))
+angleSupportCut.Placement=App.Placement(App.Vector(-10,-4,29), App.Rotation(0,0,-135))
+base1whole=base1whole.cut(angleSupportCut)
+base1whole.Placement=App.Placement(App.Vector(160,base1whole.BoundBox.ZMax,0), App.Rotation(0,0,90))
+
+#now make motor mount.
+spinnerMotor=makeMotorHousing()
+spinnerMotor.Placement= App.Placement(App.Vector((base1.BoundBox.XMax-base1.BoundBox.XMin)/2-20,distanceOffGroundBattery+spinnerCenterToBatteryBottom-spinnerMotor.BoundBox.XMax/2,spinnerMotor.BoundBox.ZMax), App.Rotation(-90,180,0))
+spinnerMotorCut=Part.makeBox(200,200,200)
+spinnerMotorCut.Placement=App.Placement(App.Vector(0,spinnerMotor.BoundBox.YMax-thickness,0), App.Rotation(0,0,0))
+spinnerMotor=spinnerMotor.cut(spinnerMotorCut)
+spinnerMotorCut.Placement=App.Placement(App.Vector(0,0,spinnerMotor.BoundBox.ZMax-thickness), App.Rotation(0,0,0))
+spinnerMotor=spinnerMotor.cut(spinnerMotorCut)
+
+base2=Part.makeBox((base1.BoundBox.XMax-base1.BoundBox.XMin),spinnerMotor.BoundBox.YMin,thickness)
+base1cut.Placement = App.Placement(App.Vector(0,0,0), App.Rotation(0,0,0))
+base1cut.Placement = App.Placement(App.Vector((base2.BoundBox.XMax-base1cut.BoundBox.XMax)/2,distanceOffGroundBattery-5.5+batteryCageHeight*1.8,0), App.Rotation(0,0,90))
+base2=base2.cut(base1cut)
+vertical2a=Part.makeBox(base2.BoundBox.XMax,thickness,100)
+vertical2b=vertical2a.copy()
+vertical2b.Placement=App.Placement(App.Vector(0,spinnerMotor.BoundBox.YMin-thickness,0), App.Rotation(0,0,0))
+support2a = Part.makeBox(thickness,spinnerMotor.BoundBox.YMin,vertical2b.BoundBox.ZMax)
+support2b = support2a.copy()
+support2b.Placement=App.Placement(App.Vector(base2.BoundBox.XMax-thickness,0,0), App.Rotation(0,0,0))
+#cut screw holes
+for placement in screwCutPlacement:
+  screwCut.Placement = App.Placement(App.Vector(placement[0],0,placement[1]), App.Rotation(0,0,-90))
+  vertical2a = vertical2a.cut(screwCut)
+Part.show(spinnerMotor); Part.show(base2); Part.show(vertical2a); Part.show(vertical2b); Part.show(support2a); Part.show(support2b)
+
+#individual draw base 1
+#Part.show(base1)
+#Part.show(catchCyl)
+#Part.show(vertical1)
+#for support in supports1:
+#  Part.show(support)
+#group draw base1
+Part.show(base1whole)
+
+#Make it pretty#
+App.activeDocument().recompute()
+Gui.activeDocument().activeView().viewAxometric()
+Gui.SendMsgToActiveView("ViewFit")

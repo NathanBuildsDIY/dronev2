@@ -1,0 +1,138 @@
+import Part
+import math
+from FreeCAD import Base
+#TO DO: 
+#Add side bracket supports to prevent warping/moving offline on vertical build
+#add angled top like 3.0 to make tighter fit in base
+#Remove charger bars. Make more holes. just run loops of copper tape or 18 ga wire in each one at different Z, solder on inside.
+#2.3 adds extra cone to top to help exit the spinner.
+
+#VALUES#
+side = 150
+footheight = 10
+legheight = 120
+head = 20
+batteryCage = 30 #spacing of battery pipes
+batteryCageHeight = 40 #height of cage side rails
+batteryBayInset=5
+radius = 10
+thickness = 1.5
+supportthickness = 1
+nozzleOffsetFromBattery=70; nozzleLength=22;
+batteryPathDepth=10
+batteryCageBottom=10 #thickness to add to battery cage so we can handle cutouts for battery pipe connections
+lidarwidth = 50
+picamerawidth = 25
+screwradius = 2
+cageNozzleLength=30
+lastChargePortOffset = 21.5 #charge ports were too close and could discharge on copper tape long strips on insert/remove. Move last ports more to center
+
+#Create new document
+App.newDocument("droneBatteryCage")
+App.setActiveDocument("droneBatteryCage")
+App.ActiveDocument=App.getDocument("droneBatteryCage")
+Gui.ActiveDocument=Gui.getDocument("droneBatteryCage")
+
+batteryCageWidth=2*batteryCage-1
+batteryCage=Part.makeBox(batteryCageWidth,batteryCageHeight+batteryCageBottom+batteryPathDepth-.5,side*2-cageNozzleLength*2) #-8 is there to get this below the lid!
+batteryCageCut1=Part.makeBox(batteryCageWidth-4,batteryCage.BoundBox.YMax-batteryCageBottom-batteryPathDepth-5,batteryCage.BoundBox.ZMax) #hollow out center
+batteryCageCut1.Placement=App.Placement(App.Vector(2,batteryCageBottom,0), App.Rotation(0,0,0))
+batteryCage=batteryCage.cut(batteryCageCut1)
+batteryCageCut2=Part.makeBox(100,batteryCageHeight-5,batteryCage.BoundBox.ZMax-60) #cut out sides to insert battery. -15 to give other wall some thickness
+batteryCageCut2.Placement=App.Placement(App.Vector(-1,batteryCageBottom,5), App.Rotation(0,0,0))
+batteryCage=batteryCage.cut(batteryCageCut2)
+batteryCageCut3=Part.makeBox(100,(batteryCageHeight-5)/1.41,(batteryCageHeight-5)/1.41) #angle top cut
+batteryCageCut3.Placement=App.Placement(App.Vector(-1,batteryCageBottom+batteryCageCut3.BoundBox.YMax*1.41/2,batteryCageCut2.BoundBox.ZMax-batteryCageCut3.BoundBox.ZMax*1.41/2), App.Rotation(0,0,45))
+batteryCage=batteryCage.cut(batteryCageCut3)
+
+#cut out battery legs from bottom
+batteryPipe1=Part.makeBox(radius*2,radius*2,side*4)
+batteryPipe2=batteryPipe1.copy()
+batteryPipe3=batteryPipe1.copy()
+batteryPipe4=batteryPipe1.copy()
+batteryPipe1.Placement = App.Placement(App.Vector(batteryCage.BoundBox.XMin,0,0), App.Rotation(45,0,0))
+batteryPipe1.Placement = App.Placement(App.Vector(batteryCage.BoundBox.XMin,-batteryPipe1.BoundBox.YMax+batteryPathDepth,-side), App.Rotation(45,0,0))
+batteryPipe2.Placement = App.Placement(App.Vector(batteryCage.BoundBox.XMax,0,0), App.Rotation(45,0,0))
+batteryPipe2.Placement = App.Placement(App.Vector(batteryCage.BoundBox.XMax,-batteryPipe2.BoundBox.YMax+batteryPathDepth,-side), App.Rotation(45,0,0))
+batteryCage=batteryCage.cut(batteryPipe1)
+batteryCage=batteryCage.cut(batteryPipe2)
+batteryPipe3.Placement = App.Placement(App.Vector(batteryCage.BoundBox.XMin,0,0), App.Rotation(45,0,0))
+batteryPipe4.Placement = App.Placement(App.Vector(batteryCage.BoundBox.XMin,0,0), App.Rotation(45,0,0))
+batteryPipe3.Placement = App.Placement(App.Vector(batteryCage.BoundBox.XMin,batteryCage.BoundBox.YMax-batteryPathDepth,-side), App.Rotation(45,0,0))
+batteryPipe4.Placement = App.Placement(App.Vector(batteryCage.BoundBox.XMax,batteryCage.BoundBox.YMax-batteryPathDepth,-side), App.Rotation(45,0,0))
+batteryCage=batteryCage.cut(batteryPipe3)
+batteryCage=batteryCage.cut(batteryPipe4)
+
+#separate charge wire ports. Add covers to hold wires in place. add holes for charge wires to go through
+#batterychargeportsplacement=[[batteryCage.BoundBox.XMax/6-screwradius-thickness],[batteryCage.BoundBox.XMax/6+screwradius],[batteryCage.BoundBox.XMax*2/6-screwradius-thickness],[batteryCage.BoundBox.XMax*2/6+screwradius],[batteryCage.BoundBox.XMax*3/6-screwradius-thickness],[batteryCage.BoundBox.XMax*3/6+screwradius],[batteryCage.BoundBox.XMax*4/6-screwradius-thickness],[batteryCage.BoundBox.XMax*4/6+screwradius],[batteryCage.BoundBox.XMax*5/6-screwradius-thickness],[batteryCage.BoundBox.XMax*5/6+screwradius]]
+#batterychargeports=[]
+#for placement in batterychargeportsplacement:
+#  #batterychargeport=Part.makeBox(thickness,batterysideYMax-batterycagetopYMax,side*2)
+#  batterychargeport=Part.makeBox(thickness,2,batteryCage.BoundBox.ZMax)
+#  batterychargeport.Placement = App.Placement(App.Vector(placement[0],batteryCage.BoundBox.YMax,0), App.Rotation(0,0,0))
+#  batterychargeports.append(batterychargeport)
+
+#add a single ridge to "key" battery cage so it can't be inserted backwards (+/- voltage) in drone
+batteryCageKey=Part.makeBox(1,1,batteryCage.BoundBox.ZMax)
+batteryCageKey.Placement = App.Placement(App.Vector(20,-1,0), App.Rotation(0,0,0))
+Part.show(batteryCageKey)
+
+#add holes for charger wires. Wires go inside cage, then pop out in middle to form arch. one re-entry at the extreme end to solder to charge connector
+screwhole = Part.makeCylinder(screwradius,side)
+screwxplacements=[[batteryCage.BoundBox.XMax*2/6],[batteryCage.BoundBox.XMax*3/6],[batteryCage.BoundBox.XMax*4/6]]
+screwyplacements=[[side*1/8],[side*1/4],[side*5/8+lastChargePortOffset],[side*3/4+lastChargePortOffset]]
+for screwxplacement in screwxplacements:
+  for screwyplacement in screwyplacements:
+    screwhole.Placement = App.Placement(App.Vector(screwxplacement[0],20,screwyplacement[0]), App.Rotation(0,0,-90))
+    batteryCage=batteryCage.cut(screwhole)
+
+#add top and bottom nozzles
+bottomNozzle=Part.makeWedge(0,0,0,batteryCage.BoundBox.YMax/4,batteryCage.BoundBox.XMax/4,batteryCage.BoundBox.XMax,cageNozzleLength,batteryCage.BoundBox.YMax,batteryCage.BoundBox.YMax*4/5,batteryCage.BoundBox.XMax*4/5)
+bottomNozzle.Placement=App.Placement(App.Vector(0,0,0), App.Rotation(0,0,-90))
+bottomNozzle=bottomNozzle.cut(batteryPipe1)
+bottomNozzle=bottomNozzle.cut(batteryPipe2)
+topNozzle=Part.makeWedge(0,0,0,batteryCage.BoundBox.YMax/2,batteryCage.BoundBox.XMax/2,batteryCage.BoundBox.XMax,cageNozzleLength,batteryCage.BoundBox.YMax,batteryCage.BoundBox.YMax/2,batteryCage.BoundBox.XMax/2)
+topNozzleCut=topNozzle.copy()
+topNozzle.Placement=App.Placement(App.Vector(0,topNozzle.BoundBox.ZMax,batteryCage.BoundBox.ZMax), App.Rotation(0,0,90))
+topNozzleCut.Placement=App.Placement(App.Vector(0,topNozzleCut.BoundBox.ZMax,batteryCage.BoundBox.ZMax), App.Rotation(0,0,90))
+topNozzle=topNozzle.cut(batteryPipe1)
+topNozzle=topNozzle.cut(batteryPipe2)
+topNozzleCut=topNozzleCut.cut(batteryPipe1) #initially cut these at full z height, then move down for hollow cut
+topNozzleCut=topNozzleCut.cut(batteryPipe2)
+topNozzleCut.Placement=App.Placement(App.Vector(0,0,-3), App.Rotation(0,0,0))
+topNozzle=topNozzle.cut(topNozzleCut) #make it a hollow wedge to make buildable
+topFlare=Part.makeCone(0,batteryCage.BoundBox.XMax/2-5,radius*2.82+15)
+topFlareReverse=Part.makeCone(batteryCage.BoundBox.XMax/2-5,6,15) #added this so we have correct slope to middle to exit the spinner
+topFlareReverse.Placement=App.Placement(App.Vector(0,0,topFlare.BoundBox.ZMax), App.Rotation(0,0,0))
+topFlare=topFlare.fuse(topFlareReverse)
+topFlare.Placement=App.Placement(App.Vector(batteryCage.BoundBox.XMax/2,batteryCage.BoundBox.YMax/2,topNozzle.BoundBox.ZMax-30), App.Rotation(0,0,0))
+topFlare=topFlare.cut(topNozzleCut)
+
+topNozzle=topNozzle.cut(batteryPipe1)
+topNozzle=topNozzle.cut(batteryPipe2)
+topNozzle=topNozzle.cut(batteryPipe3)
+topNozzle=topNozzle.cut(batteryPipe4)
+bottomNozzle=bottomNozzle.cut(batteryPipe1)
+bottomNozzle=bottomNozzle.cut(batteryPipe2)
+bottomNozzle=bottomNozzle.cut(batteryPipe3)
+bottomNozzle=bottomNozzle.cut(batteryPipe4)
+
+#add base for stability so it doesn't fall during manufacture
+baseSticker=Part.makeBox(batteryCage.BoundBox.XMax,batteryCage.BoundBox.YMax,thickness)
+baseSticker.Placement=App.Placement(App.Vector(0,0,bottomNozzle.BoundBox.ZMin),App.Rotation(0,0,0))
+
+#add slots for copper tape (+ -) - don't need this. just fold copper tape over the edge and inside. solder to it there.
+#TO DO: add holder for battery and power/charger cables. Start with just velcro or ziptie to secure.
+
+#draw all the solids
+Part.show(batteryCage)
+Part.show(bottomNozzle)
+Part.show(topNozzle)
+Part.show(topFlare)
+#for batterychargeport in batterychargeports:
+#  Part.show(batterychargeport)
+Part.show(baseSticker)
+#Make it pretty#
+App.activeDocument().recompute()
+Gui.activeDocument().activeView().viewAxometric()
+Gui.SendMsgToActiveView("ViewFit")

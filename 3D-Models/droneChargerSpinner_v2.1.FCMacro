@@ -1,0 +1,119 @@
+import Part
+import math
+from FreeCAD import Base
+
+#notes on build:
+#make full length copper tape in charger bays that wrap to top of charger bay. there solder to wires/connector for charger.
+#put charger on top of bay? run shore power out through gaps in axle
+#to do? add wire harness for charger/wires on top.  add harness for charger(s)?
+
+#VALUES#
+side = 150
+footheight = 10
+legheight = 120
+head = 20
+batteryCage = 30 #spacing of battery pipes
+batteryCageHeight = 40 #height of cage side rails
+batteryPathDepth=10
+batteryCageBottom=10
+batteryBayInset=5
+radius = 10
+thickness = 3
+supportthickness = 1
+nozzleOffsetFromBattery=70; nozzleLength=22;
+cageNozzleLength=30
+batteryPathDepth=10
+batteryCageBottom=10 #thickness to add to battery cage so we can handle cutouts for battery pipe connections
+postRadius = 5
+supportthickness = 1
+lastChargePortOffset = 21.5 #charge ports were too close and could discharge on copper tape long strips on insert/remove. Move last ports more to center
+#parts arrays
+batteryBays=[]
+#placement arrays
+#original - batterybayplacement=[[-batteryCage-radius+thickness,-side/2,0,0,0,0],[batteryCage+radius-2*thickness,-side/2,0,0,0,0],[-batteryCage-radius+thickness,0,0,0,0,0],[batteryCage+radius-2*thickness,0,0,0,0,0],[-batteryCage-radius+thickness,side/2,0,0,0,0],[batteryCage+radius-2*thickness,side/2,0,0,0,0],[-batteryCage-radius-0.5*thickness,-side,0,-5,0,0],[batteryCage+radius-thickness/2,-side,0,5,0,0]]
+batterybayplacement=[[-batteryCage-thickness,-3*batteryCage+thickness*8/6,0,0,0,0],[batteryCage*3+thickness*1/6,.5*batteryCage-thickness*2/6,0,120,0,0],[-2*batteryCage+thickness*4/6,2.3*batteryCage+thickness*4/6,0,-120,0,0]]
+
+#Create new document
+App.newDocument("ChargerSpinner")
+App.setActiveDocument("ChargerSpinner")
+App.ActiveDocument=App.getDocument("ChargerSpinner")
+Gui.ActiveDocument=Gui.getDocument("ChargerSpinner")
+
+#make battery bay squares
+for placement in batterybayplacement:
+  batteryBayCut = Part.makeBox(batteryCage*2,batteryCageHeight+batteryPathDepth+batteryCageBottom+.75,side*2+1.41*radius*2)
+  batteryBay = Part.makeBox(batteryBayCut.BoundBox.XMax+thickness*2,batteryBayCut.BoundBox.YMax+thickness*2,batteryBayCut.BoundBox.ZMax)
+  batteryBayCut.Placement= App.Placement(App.Vector(thickness,thickness,0), App.Rotation(0,0,0))
+  batteryBay=batteryBay.cut(batteryBayCut)
+  #also cut 45 out of top so it can rotate w/o hitting supports
+  batteryBayCut2=Part.makeBox(100,100,100)
+  batteryBayCut2.Placement= App.Placement(App.Vector(-10,-10,batteryBay.BoundBox.ZMax-40), App.Rotation(0,0,45))
+  batteryBay=batteryBay.cut(batteryBayCut2)
+  #add dividers for wires
+  divider1=Part.makeBox(2,1,side*2); divider2=divider1.copy(); divider3=divider1.copy(); divider4=divider1.copy();
+  divider1.Placement = App.Placement(App.Vector((batteryBayCut.BoundBox.XMax-thickness)*1/3-thickness*2/2,batteryBayCut.BoundBox.YMax-divider4.BoundBox.YMax,0), App.Rotation(0,0,0))
+  divider2.Placement = App.Placement(App.Vector((batteryBayCut.BoundBox.XMax-thickness)*1/2-thickness*2/2,batteryBayCut.BoundBox.YMax-divider4.BoundBox.YMax,0), App.Rotation(0,0,0))
+  divider3.Placement = App.Placement(App.Vector((batteryBayCut.BoundBox.XMax-thickness)*2/3-thickness*2/2,batteryBayCut.BoundBox.YMax-divider4.BoundBox.YMax,0), App.Rotation(0,0,0))
+  divider4.Placement = App.Placement(App.Vector((batteryBayCut.BoundBox.XMax-thickness)*2/3+thickness*5/2,batteryBayCut.BoundBox.YMax-divider4.BoundBox.YMax,0), App.Rotation(0,0,0))
+  #add a single ridge to "key" battery cage so it can't be inserted backwards (+/- voltage) in drone
+  batteryCageKey=Part.makeBox(2,1.5,batteryBay.BoundBox.ZMax)
+  batteryCageKey.Placement = App.Placement(App.Vector(19.5+batteryBayCut.BoundBox.XMin,batteryBayCut.BoundBox.YMin-batteryCageKey.BoundBox.YMax,10), App.Rotation(0,0,0))
+  batteryBay=batteryBay.cut(batteryCageKey)
+  batteryCageKey.Placement = App.Placement(App.Vector(batteryBayCut.BoundBox.XMax-21.5,batteryBayCut.BoundBox.YMin-1.5,10), App.Rotation(0,0,0))
+  batteryBay=batteryBay.cut(batteryCageKey)
+  
+  #add holes for charge ports that match battery bay
+  screwhole = Part.makeCylinder(3,side)
+  xStart=batteryBayCut.BoundBox.XMin
+  xWidth=(batteryBayCut.BoundBox.XMax-batteryBayCut.BoundBox.XMin)
+  screwxplacements=[[xStart+xWidth*2/6],[xStart+xWidth*3/6],[xStart+xWidth*4/6]]
+  screwyplacements=[[side*1/8+cageNozzleLength],[side*2/8+cageNozzleLength],[side*5/8+cageNozzleLength+lastChargePortOffset],[side*6/8+cageNozzleLength+lastChargePortOffset],[batteryBay.BoundBox.ZMax-cageNozzleLength-side*1/8],[batteryBay.BoundBox.ZMax-cageNozzleLength-side*2/8],[batteryBay.BoundBox.ZMax-cageNozzleLength-side*5/8-lastChargePortOffset],[batteryBay.BoundBox.ZMax-cageNozzleLength-side*6/8-lastChargePortOffset]]
+  for screwxplacement in screwxplacements:
+    for screwyplacement in screwyplacements:
+      screwhole.Placement = App.Placement(App.Vector(screwxplacement[0],20,screwyplacement[0]), App.Rotation(0,0,-90))
+      batteryBay=batteryBay.cut(screwhole)
+  batteryBay=batteryBay.fuse(divider1).fuse(divider2).fuse(divider3).fuse(divider4)
+  batteryBay.Placement = App.Placement(App.Vector(placement[0],placement[1],placement[2]), App.Rotation(placement[3],placement[4],placement[5]))
+  Part.show(batteryBay)
+
+#create center post to rotate on
+centerCyl=Part.makeCylinder(postRadius,side*2+2*radius*1.41)
+centerCyl.Placement = App.Placement(App.Vector(0,0,0), App.Rotation(0,0,0))
+centerPlate = Part.makeBox(37,39,thickness)
+centerPlate.Placement = App.Placement(App.Vector(-centerPlate.BoundBox.XMax/2,-centerPlate.BoundBox.YMax/2,0), App.Rotation(0,0,0))
+centerCyl=centerCyl.fuse(centerPlate)
+#cut holes for mount plate of servo to screw into
+screwHole = Part.makeCylinder(1.5,thickness)
+screwHole.Placement = App.Placement(App.Vector(14,0,0), App.Rotation(0,0,0))
+centerCyl=centerCyl.cut(screwHole)
+screwHole.Placement = App.Placement(App.Vector(-14,0,0), App.Rotation(0,0,0))
+centerCyl=centerCyl.cut(screwHole)
+screwHole.Placement = App.Placement(App.Vector(0,-14,0), App.Rotation(0,0,0))
+centerCyl=centerCyl.cut(screwHole)
+screwHole.Placement = App.Placement(App.Vector(0,14,0), App.Rotation(0,0,0))
+centerCyl=centerCyl.cut(screwHole)
+#also cut hole at center for servo screw to sit
+mountHole=Part.makeCylinder(4,4)
+mountHole2=Part.makeCone(4,0,4)
+mountHole2.Placement=App.Placement(App.Vector(0,0,mountHole.BoundBox.ZMax), App.Rotation(0,0,0))
+mountHole=mountHole.fuse(mountHole2)
+Part.show(mountHole)
+centerCyl=centerCyl.cut(mountHole)
+#create connectors from centerCyl to bays
+connector1=Part.makeBox(thickness,batteryCage*1.41-3,side*2)
+connector2=connector1.copy()
+connector3=connector1.copy()
+connector1.Placement = App.Placement(App.Vector(-thickness/2,0,0), App.Rotation(0,0,0))
+connector2.Placement = App.Placement(App.Vector(thickness/2,-thickness/2,0), App.Rotation(120,0,0))
+connector3.Placement = App.Placement(App.Vector(0,thickness/2,0), App.Rotation(-120,0,0))
+connector1=connector1.cut(mountHole); connector2=connector2.cut(mountHole); connector3=connector3.cut(mountHole);
+connector1=connector1.cut(screwHole); connector2=connector2.cut(screwHole); connector3=connector3.cut(screwHole);
+Part.show(connector1)
+Part.show(connector2)
+Part.show(connector3)
+Part.show(centerCyl)
+
+#Make it pretty#
+App.activeDocument().recompute()
+Gui.activeDocument().activeView().viewAxometric()
+Gui.SendMsgToActiveView("ViewFit")
